@@ -1,19 +1,17 @@
 /**
  * Cloudflare Worker — Blueprint App
  *
- * With run_worker_first: false in wrangler.jsonc, Cloudflare serves
- * static files from public/ BEFORE invoking this worker.
- * The worker is only called for routes that have no matching static file:
- *
  *   GET  /entries  → fetch all blueprints from D1
- *   POST /submit   → save to D1 + send email via Resend
+ *   POST /submit   → save to D1 + send email via Microsoft Graph API
  *
- * Bindings (configured in wrangler.jsonc / Cloudflare dashboard):
+ * Bindings:
  *   env.db             — D1 database
  *
- * Environment variables (Cloudflare dashboard → Worker → Settings):
- *   RESEND_API_KEY     — Resend API key
- *   EMAIL_FROM         — Verified sender address
+ * Secret bindings (set at deploy time):
+ *   MS_TENANT_ID       — Azure AD Tenant ID
+ *   MS_CLIENT_ID       — Azure App Registration Client ID
+ *   MS_CLIENT_SECRET   — Azure App Registration Client Secret
+ *   EMAIL_FROM         — Sender mailbox (must have Mail.Send permission)
  *   EMAIL_TO           — Recipient address
  */
 
@@ -98,34 +96,13 @@ async function handleSubmit(request, env) {
       return jsonRes({ success: false, error: 'Database error: ' + err.message }, 500);
     }
 
-    // 2. Send email via Resend
+    // 2. Send email via Microsoft Graph API
     let emailWarning;
-    if (!env.RESEND_API_KEY || !env.EMAIL_FROM || !env.EMAIL_TO) {
-      emailWarning = 'Email skipped — RESEND_API_KEY / EMAIL_FROM / EMAIL_TO not configured.';
-    } else {
-      try {
-        const emailRes = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            Authorization:  `Bearer ${env.RESEND_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            from:    env.EMAIL_FROM,
-            to:      env.EMAIL_TO,
-            subject: `New Blueprint Submission — ${companyName}`,
-            text:    `Record #${newEntry.id}\nCompany: ${companyName}\nPurpose: ${applicationPurpose}\nDescription: ${description}\nSubmitted: ${submittedAt}`,
-            html:    buildEmailHtml({ companyName, applicationPurpose, description, submittedAt, id: newEntry.id }),
-          }),
-        });
-
-        if (!emailRes.ok) {
-          const e = await emailRes.json().catch(() => ({}));
-          emailWarning = e.message || `Resend HTTP ${emailRes.status}`;
-        }
-      } catch (err) {
-        emailWarning = err.message;
-      }
+    try {
+      await sendViaMicrosoftGraph(newEntry, env);
+    } catch (err) {
+      emailWarning = err.message;
+      console.error('[submit] email error:', err.message);
     }
 
     return jsonRes({
@@ -136,6 +113,72 @@ async function handleSubmit(request, env) {
 
   } catch (err) {
     return jsonRes({ success: false, error: 'Unexpected error: ' + err.message }, 500);
+  }
+}
+
+// ── Microsoft Graph API email ─────────────────────────────────────────────────
+async function sendViaMicrosoftGraph(entry, env) {
+  const { MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET, EMAIL_FROM, EMAIL_TO } = env;
+
+  if (!MS_TENANT_ID || !MS_CLIENT_ID || !MS_CLIENT_SECRET || !EMAIL_FROM || !EMAIL_TO) {
+    throw new Error('Microsoft Graph email env vars not fully configured.');
+  }
+
+  // Step 1 — Get OAuth2 access token via client credentials flow
+  const tokenRes = await fetch(
+    `https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/token`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type:    'client_credentials',
+        client_id:     MS_CLIENT_ID,
+        client_secret: MS_CLIENT_SECRET,
+        scope:         'https://graph.microsoft.com/.default',
+      }),
+    }
+  );
+
+  if (!tokenRes.ok) {
+    const err = await tokenRes.text();
+    throw new Error(`Azure token error (HTTP ${tokenRes.status}): ${err.slice(0, 200)}`);
+  }
+
+  const { access_token } = await tokenRes.json();
+
+  // Step 2 — Send email via Microsoft Graph
+  const mailRes = await fetch(
+    `https://graph.microsoft.com/v1.0/users/${EMAIL_FROM}/sendMail`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization:  `Bearer ${access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: {
+          subject: `New Blueprint Submission — ${entry.company_name}`,
+          body: {
+            contentType: 'HTML',
+            content: buildEmailHtml({
+              companyName:        entry.company_name,
+              applicationPurpose: entry.application_purpose,
+              description:        entry.description,
+              submittedAt:        entry.submitted_at,
+              id:                 entry.id,
+            }),
+          },
+          toRecipients: [{ emailAddress: { address: EMAIL_TO } }],
+          from:          { emailAddress: { address: EMAIL_FROM } },
+        },
+        saveToSentItems: true,
+      }),
+    }
+  );
+
+  if (!mailRes.ok) {
+    const err = await mailRes.text();
+    throw new Error(`Graph API error (HTTP ${mailRes.status}): ${err.slice(0, 300)}`);
   }
 }
 
