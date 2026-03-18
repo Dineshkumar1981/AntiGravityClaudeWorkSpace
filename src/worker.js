@@ -29,6 +29,9 @@ export default {
     }
 
     // Everything else → static assets (index.html, style.css, app.js)
+    if (!env.ASSETS) {
+      return new Response('ASSETS binding not configured. Add "binding": "ASSETS" under assets in wrangler.jsonc.', { status: 503 });
+    }
     return env.ASSETS.fetch(request);
   },
 };
