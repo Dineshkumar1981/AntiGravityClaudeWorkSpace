@@ -1,0 +1,10 @@
+name                  = "blueprint-app"
+compatibility_date    = "2024-09-23"
+pages_build_output_dir = "public"
+
+# ── Cloudflare D1 (SQLite) database ─────────────────────────────────────────
+# After running `wrangler d1 create blueprints-db`, paste the database_id below
+[[d1_databases]]
+binding       = "DB"
+database_name = "blueprints-db"
+database_id   = "REPLACE_WITH_YOUR_D1_DATABASE_ID"

@@ -1,19 +1,15 @@
 {
   "name": "blueprint-app",
   "version": "1.0.0",
-  "description": "Blueprint capture and email notification app",
-  "main": "server.js",
+  "description": "Blueprint capture and email notification app — Cloudflare Pages",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
-  },
-  "dependencies": {
-    "better-sqlite3": "^9.4.3",
-    "dotenv": "^16.0.0",
-    "express": "^4.18.0",
-    "nodemailer": "^8.0.2"
+    "dev":            "wrangler pages dev public --d1=DB",
+    "deploy":         "wrangler pages deploy public",
+    "db:create":      "wrangler d1 create blueprints-db",
+    "db:init:local":  "wrangler d1 execute blueprints-db --local  --file=schema.sql",
+    "db:init:remote": "wrangler d1 execute blueprints-db --remote --file=schema.sql"
   },
   "devDependencies": {
-    "nodemon": "^3.0.0"
+    "wrangler": "^3.95.0"
   }
 }
