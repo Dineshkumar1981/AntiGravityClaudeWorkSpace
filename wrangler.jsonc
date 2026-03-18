@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "antigravityclaudeworkspace",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-03-17",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": "public"
+  },
+  "d1_databases": [
+    {
+      "binding": "db",
+      "database_name": "blueprints-db",
+      "database_id": "f69fb666-8a5f-4f25-bf46-54fd191fbb44"
+    }
+  ]
+}

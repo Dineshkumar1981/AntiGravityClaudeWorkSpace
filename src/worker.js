@@ -1,15 +1,19 @@
 /**
- * Cloudflare Pages _worker.js
+ * Cloudflare Worker — Blueprint App
  *
- * Handles API routes, falls back to static assets for everything else.
+ * Routes:
+ *   GET  /entries  → fetch all blueprints from D1
+ *   POST /submit   → save to D1 + send email via Resend
+ *   *              → serve static assets from public/
  *
- * Required bindings — Cloudflare Pages → Settings → Functions:
- *   DB             (D1 database)
+ * Bindings (already configured in Cloudflare dashboard):
+ *   env.db             — D1 database (binding name: db)
+ *   env.ASSETS         — Static asset serving (auto-provided)
  *
- * Required env vars — Cloudflare Pages → Settings → Environment Variables:
- *   RESEND_API_KEY
- *   EMAIL_FROM     (verified sender, e.g. noreply@yourdomain.com)
- *   EMAIL_TO       (recipient)
+ * Environment variables (set in Cloudflare dashboard):
+ *   RESEND_API_KEY     — Resend API key
+ *   EMAIL_FROM         — Verified sender address
+ *   EMAIL_TO           — Recipient address
  */
 
 export default {
@@ -24,7 +28,7 @@ export default {
       return handleSubmit(request, env);
     }
 
-    // All other requests → serve static files from public/
+    // Everything else → static assets (index.html, style.css, app.js)
     return env.ASSETS.fetch(request);
   },
 };
@@ -32,39 +36,39 @@ export default {
 // ── GET /entries ──────────────────────────────────────────────────────────────
 async function handleEntries(env) {
   try {
-    if (!env.DB) {
-      return jsonResponse({ success: false, error: 'D1 binding "DB" not configured in Cloudflare Pages → Settings → Functions → D1 database bindings.' }, 503);
+    if (!env.db) {
+      return jsonRes({ success: false, error: 'D1 binding "db" not found. Check Cloudflare dashboard → Workers → Settings → D1 database bindings.' }, 503);
     }
 
-    const { results } = await env.DB.prepare(
+    const { results } = await env.db.prepare(
       `SELECT id, company_name, application_purpose, description, submitted_at
        FROM blueprints ORDER BY id DESC`
     ).all();
 
-    return jsonResponse({ success: true, entries: results || [] });
+    return jsonRes({ success: true, entries: results || [] });
   } catch (err) {
-    return jsonResponse({ success: false, error: err.message }, 500);
+    return jsonRes({ success: false, error: err.message }, 500);
   }
 }
 
 // ── POST /submit ──────────────────────────────────────────────────────────────
 async function handleSubmit(request, env) {
   try {
-    if (!env.DB) {
-      return jsonResponse({ success: false, error: 'D1 binding "DB" not configured in Cloudflare Pages → Settings → Functions → D1 database bindings.' }, 503);
+    if (!env.db) {
+      return jsonRes({ success: false, error: 'D1 binding "db" not found. Check Cloudflare dashboard → Workers → Settings → D1 database bindings.' }, 503);
     }
 
     let body;
     try {
       body = await request.json();
     } catch {
-      return jsonResponse({ success: false, error: 'Invalid JSON body.' }, 400);
+      return jsonRes({ success: false, error: 'Invalid JSON body.' }, 400);
     }
 
     const { applicationPurpose, description, companyName } = body;
 
     if (!applicationPurpose || !description || !companyName) {
-      return jsonResponse({ success: false, error: 'All fields are required.' }, 400);
+      return jsonRes({ success: false, error: 'All fields are required.' }, 400);
     }
 
     const submittedAt = new Date().toLocaleString('en-US', {
@@ -76,7 +80,7 @@ async function handleSubmit(request, env) {
     // 1. Save to D1
     let newEntry;
     try {
-      const result = await env.DB.prepare(
+      const result = await env.db.prepare(
         `INSERT INTO blueprints (company_name, application_purpose, description, submitted_at)
          VALUES (?, ?, ?, ?)`
       ).bind(companyName, applicationPurpose, description, submittedAt).run();
@@ -89,13 +93,13 @@ async function handleSubmit(request, env) {
         submitted_at:        submittedAt,
       };
     } catch (err) {
-      return jsonResponse({ success: false, error: 'Database error: ' + err.message }, 500);
+      return jsonRes({ success: false, error: 'Database error: ' + err.message }, 500);
     }
 
     // 2. Send email via Resend
     let emailWarning;
     if (!env.RESEND_API_KEY || !env.EMAIL_FROM || !env.EMAIL_TO) {
-      emailWarning = 'Email not sent — RESEND_API_KEY / EMAIL_FROM / EMAIL_TO not configured.';
+      emailWarning = 'Email skipped — RESEND_API_KEY / EMAIL_FROM / EMAIL_TO not configured.';
     } else {
       try {
         const emailRes = await fetch('https://api.resend.com/emails', {
@@ -122,19 +126,19 @@ async function handleSubmit(request, env) {
       }
     }
 
-    return jsonResponse({
+    return jsonRes({
       success: true,
       entry: newEntry,
       ...(emailWarning && { emailWarning }),
     });
 
   } catch (err) {
-    return jsonResponse({ success: false, error: 'Unexpected error: ' + err.message }, 500);
+    return jsonRes({ success: false, error: 'Unexpected error: ' + err.message }, 500);
   }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function jsonResponse(data, status = 200) {
+function jsonRes(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json' },
@@ -165,7 +169,7 @@ function buildEmailHtml({ companyName, applicationPurpose, description, submitte
               <td style="padding:12px 16px;border-bottom:1px solid #d0d7de;">${escapeHtml(companyName)}</td>
             </tr>
             <tr style="background:#f6f8fa;">
-              <th style="padding:12px 16px;text-align:left;color:#57606a;border-bottom:1px solid #d0d7de;">Application Purpose</th>
+              <th style="padding:12px 16px;text-align:left;color:#57606a;border-bottom:1px solid #d0d7de;">App Purpose</th>
               <td style="padding:12px 16px;border-bottom:1px solid #d0d7de;">${escapeHtml(applicationPurpose)}</td>
             </tr>
             <tr>
