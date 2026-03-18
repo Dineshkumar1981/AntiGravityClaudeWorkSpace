@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blueprint App</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <span class="header-icon">&#128196;</span>
+      <div>
+        <h1>Blueprint App</h1>
+        <p class="header-subtitle">Capture &amp; Submit Application Blueprints</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Form Section -->
+    <section class="card form-section">
+      <h2 class="section-title">New Blueprint</h2>
+
+      <form id="blueprint-form" novalidate>
+        <div class="field-group">
+          <label for="companyName">Company Name <span class="required">*</span></label>
+          <input
+            type="text"
+            id="companyName"
+            name="companyName"
+            placeholder="e.g. Acme Corporation"
+            autocomplete="organization"
+            required
+          />
+        </div>
+
+        <div class="field-group">
+          <label for="applicationPurpose">Application Purpose <span class="required">*</span></label>
+          <input
+            type="text"
+            id="applicationPurpose"
+            name="applicationPurpose"
+            placeholder="e.g. Customer Portal, Internal Dashboard"
+            required
+          />
+        </div>
+
+        <div class="field-group">
+          <label for="description">Description <span class="required">*</span></label>
+          <textarea
+            id="description"
+            name="description"
+            rows="5"
+            placeholder="Provide a detailed description of the application blueprint..."
+            required
+          ></textarea>
+        </div>
+
+        <div id="status-message" role="alert" aria-live="polite"></div>
+
+        <button type="submit" id="submit-btn">
+          <span class="btn-text">Submit Blueprint</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+      </form>
+    </section>
+
+    <!-- Table Section -->
+    <section class="card table-section">
+      <div class="table-header">
+        <h2 class="section-title">Submitted Blueprints</h2>
+        <span class="entry-count" id="entry-count">0 entries</span>
+      </div>
+
+      <p id="no-entries-msg" class="empty-state">No blueprints submitted yet. Fill out the form above to get started.</p>
+
+      <div class="table-wrapper" id="table-wrapper" style="display:none;">
+        <table id="entries-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Company Name</th>
+              <th>Application Purpose</th>
+              <th>Description</th>
+              <th>Submitted At</th>
+            </tr>
+          </thead>
+          <tbody id="entries-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>Blueprint App &mdash; Submissions are emailed automatically upon capture.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
