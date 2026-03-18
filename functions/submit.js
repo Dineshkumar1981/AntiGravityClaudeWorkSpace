@@ -2,96 +2,127 @@
  * POST /submit
  * Saves a blueprint to D1 then sends an email via Resend.
  *
- * Required env/secrets:
- *   DB             — D1 binding (set in wrangler.toml)
- *   RESEND_API_KEY — Resend API key  (wrangler secret put RESEND_API_KEY)
- *   EMAIL_FROM     — Verified sender  (wrangler secret put EMAIL_FROM)
- *   EMAIL_TO       — Recipient address (wrangler secret put EMAIL_TO)
+ * Required bindings (Cloudflare Pages → Settings → Functions):
+ *   DB             — D1 database binding
+ *
+ * Required env vars (Cloudflare Pages → Settings → Environment Variables):
+ *   RESEND_API_KEY — Resend API key
+ *   EMAIL_FROM     — Verified sender address  e.g. noreply@yourdomain.com
+ *   EMAIL_TO       — Recipient address
  */
 export async function onRequest(context) {
   const { request, env } = context;
 
-  if (request.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405 });
-  }
-
-  // ── Parse body ────────────────────────────────────────────────────────────
-  let body;
+  // Top-level safety net — always return JSON, never an empty body
   try {
-    body = await request.json();
-  } catch {
-    return Response.json({ success: false, error: 'Invalid JSON body.' }, { status: 400 });
-  }
 
-  const { applicationPurpose, description, companyName } = body;
+    if (request.method !== 'POST') {
+      return Response.json({ success: false, error: 'Method Not Allowed' }, { status: 405 });
+    }
 
-  if (!applicationPurpose || !description || !companyName) {
-    return Response.json({ success: false, error: 'All fields are required.' }, { status: 400 });
-  }
+    // Guard: DB binding missing
+    if (!env.DB) {
+      return Response.json(
+        { success: false, error: 'D1 database binding "DB" is not configured. Add it in Cloudflare Pages → Settings → Functions → D1 database bindings.' },
+        { status: 503 }
+      );
+    }
 
-  const submittedAt = new Date().toLocaleString('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'UTC',
-  });
+    // ── Parse body ──────────────────────────────────────────────────────────
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json({ success: false, error: 'Invalid JSON body.' }, { status: 400 });
+    }
 
-  // ── 1. Save to D1 ─────────────────────────────────────────────────────────
-  let newEntry;
-  try {
-    const result = await env.DB.prepare(
-      `INSERT INTO blueprints (company_name, application_purpose, description, submitted_at)
-       VALUES (?, ?, ?, ?)`
-    )
-      .bind(companyName, applicationPurpose, description, submittedAt)
-      .run();
+    const { applicationPurpose, description, companyName } = body;
 
-    newEntry = {
-      id:                  result.meta.last_row_id,
-      company_name:        companyName,
-      application_purpose: applicationPurpose,
-      description,
-      submitted_at:        submittedAt,
-    };
+    if (!applicationPurpose || !description || !companyName) {
+      return Response.json({ success: false, error: 'All fields are required.' }, { status: 400 });
+    }
+
+    const submittedAt = new Date().toLocaleString('en-US', {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZone: 'UTC',
+    });
+
+    // ── 1. Save to D1 ───────────────────────────────────────────────────────
+    let newEntry;
+    try {
+      const result = await env.DB.prepare(
+        `INSERT INTO blueprints (company_name, application_purpose, description, submitted_at)
+         VALUES (?, ?, ?, ?)`
+      )
+        .bind(companyName, applicationPurpose, description, submittedAt)
+        .run();
+
+      newEntry = {
+        id:                  result.meta.last_row_id,
+        company_name:        companyName,
+        application_purpose: applicationPurpose,
+        description,
+        submitted_at:        submittedAt,
+      };
+    } catch (err) {
+      console.error('[submit] DB insert error:', err.message);
+      return Response.json(
+        { success: false, error: 'Database error: ' + err.message },
+        { status: 500 }
+      );
+    }
+
+    // ── 2. Send email via Resend ─────────────────────────────────────────────
+    let emailWarning;
+    if (!env.RESEND_API_KEY || !env.EMAIL_FROM || !env.EMAIL_TO) {
+      emailWarning = 'Email env vars (RESEND_API_KEY / EMAIL_FROM / EMAIL_TO) not configured.';
+      console.warn('[submit]', emailWarning);
+    } else {
+      try {
+        const emailRes = await fetch('https://api.resend.com/emails', {
+          method:  'POST',
+          headers: {
+            Authorization:  `Bearer ${env.RESEND_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from:    env.EMAIL_FROM,
+            to:      env.EMAIL_TO,
+            subject: `New Blueprint Submission — ${companyName}`,
+            text:    `New Blueprint Submission\n\nRecord #: ${newEntry.id}\nCompany Name: ${companyName}\nApplication Purpose: ${applicationPurpose}\nDescription: ${description}\nSubmitted At: ${submittedAt}`,
+            html:    buildEmailHtml({ companyName, applicationPurpose, description, submittedAt, id: newEntry.id }),
+          }),
+        });
+
+        if (!emailRes.ok) {
+          const errData = await emailRes.json().catch(() => ({}));
+          emailWarning = errData.message || `Resend returned HTTP ${emailRes.status}`;
+          console.error('[submit] email error:', emailWarning);
+        }
+      } catch (err) {
+        emailWarning = err.message;
+        console.error('[submit] email fetch error:', err.message);
+      }
+    }
+
+    return Response.json({
+      success: true,
+      entry: newEntry,
+      ...(emailWarning && { emailWarning }),
+    });
+
   } catch (err) {
-    console.error('DB insert error:', err.message);
+    // Catch-all — ensures we never return an empty body
+    console.error('[submit] unexpected error:', err.message);
     return Response.json(
-      { success: false, error: 'Failed to save entry: ' + err.message },
+      { success: false, error: 'Unexpected server error: ' + err.message },
       { status: 500 }
     );
   }
-
-  // ── 2. Send email via Resend ──────────────────────────────────────────────
-  let emailWarning;
-  try {
-    const emailRes = await fetch('https://api.resend.com/emails', {
-      method:  'POST',
-      headers: {
-        Authorization:  `Bearer ${env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from:    env.EMAIL_FROM,
-        to:      env.EMAIL_TO,
-        subject: `New Blueprint Submission — ${companyName}`,
-        text:    `New Blueprint Submission\n\nRecord #: ${newEntry.id}\nCompany Name: ${companyName}\nApplication Purpose: ${applicationPurpose}\nDescription: ${description}\nSubmitted At: ${submittedAt}`,
-        html:    buildEmailHtml({ companyName, applicationPurpose, description, submittedAt, id: newEntry.id }),
-      }),
-    });
-
-    if (!emailRes.ok) {
-      const errData = await emailRes.json().catch(() => ({}));
-      emailWarning = errData.message || `Resend returned HTTP ${emailRes.status}`;
-      console.error('Email send error:', emailWarning);
-    }
-  } catch (err) {
-    emailWarning = err.message;
-    console.error('Email fetch error:', err.message);
-  }
-
-  return Response.json({ success: true, entry: newEntry, ...(emailWarning && { emailWarning }) });
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')

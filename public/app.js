@@ -11,13 +11,15 @@
   async function loadEntries() {
     try {
       const res  = await fetch('/entries');
-      const data = await res.json();
+      const data = await safeJson(res);
+
       if (data.success && data.entries.length > 0) {
-        // entries come back newest-first (ORDER BY id DESC)
         data.entries.forEach(entry => renderRow(entry, false));
         updateCount(data.entries.length);
         noEntriesMsg.style.display = 'none';
         tableWrapper.style.display = 'block';
+      } else if (!data.success) {
+        console.error('Could not load entries:', data.error);
       }
     } catch (err) {
       console.error('Failed to load entries:', err.message);
@@ -49,11 +51,11 @@
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
       });
-      const data = await res.json();
+      const data = await safeJson(res);
 
       if (res.ok && data.success) {
-        renderRow(data.entry, true);           // prepend with animation
-        updateCount(entriesBody.rows ? entriesBody.rows.length : entriesBody.children.length);
+        renderRow(data.entry, true);
+        updateCount(entriesBody.children.length);
 
         if (data.emailWarning) {
           showStatus('error', `Saved to database but email failed: ${data.emailWarning}`);
@@ -62,14 +64,31 @@
         }
         form.reset();
       } else {
-        showStatus('error', data.error || 'Submission failed. Please try again.');
+        showStatus('error', data.error || `Server error (HTTP ${res.status})`);
       }
     } catch (err) {
-      showStatus('error', 'Network error: ' + err.message);
+      showStatus('error', err.message);
     } finally {
       setLoading(false);
     }
   });
+
+  // ── Safe JSON parser ─────────────────────────────────────────────────────
+  // Reads the raw text first so we never get "Unexpected end of JSON input"
+  // when the server returns an empty or HTML error body.
+  async function safeJson(res) {
+    const text = await res.text();
+    if (!text || text.trim() === '') {
+      throw new Error(`Server returned an empty response (HTTP ${res.status} ${res.statusText}).`);
+    }
+    try {
+      return JSON.parse(text);
+    } catch {
+      // Truncate long HTML error pages for readability
+      const preview = text.replace(/<[^>]+>/g, '').trim().slice(0, 120);
+      throw new Error(`Server returned non-JSON (HTTP ${res.status}): ${preview}`);
+    }
+  }
 
   // ── Render a single row ──────────────────────────────────────────────────
   function renderRow(entry, animate) {
