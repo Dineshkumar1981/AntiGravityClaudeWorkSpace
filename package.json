@@ -10,6 +10,6 @@
     "db:init:remote": "wrangler d1 execute blueprints-db --remote --file=schema.sql"
   },
   "devDependencies": {
-    "wrangler": "^3.95.0"
+    "wrangler": "^4.0.0"
   }
 }
