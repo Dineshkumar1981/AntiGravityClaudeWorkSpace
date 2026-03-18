@@ -1,11 +1,10 @@
 {
-  "name": "blueprint-app",
+  "name": "antigravityclaudeworkspace",
   "version": "1.0.0",
-  "description": "Blueprint capture and email notification app — Cloudflare Pages",
+  "description": "Blueprint App — Cloudflare Workers + D1 + Resend",
   "scripts": {
-    "dev":            "wrangler pages dev public --d1=DB",
-    "deploy":         "wrangler pages deploy public",
-    "db:create":      "wrangler d1 create blueprints-db",
+    "deploy":         "wrangler deploy",
+    "dev":            "wrangler dev",
     "db:init:local":  "wrangler d1 execute blueprints-db --local  --file=schema.sql",
     "db:init:remote": "wrangler d1 execute blueprints-db --remote --file=schema.sql"
   },
