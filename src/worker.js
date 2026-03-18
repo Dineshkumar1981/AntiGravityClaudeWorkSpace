@@ -1,16 +1,17 @@
 /**
  * Cloudflare Worker — Blueprint App
  *
- * Routes:
+ * With run_worker_first: false in wrangler.jsonc, Cloudflare serves
+ * static files from public/ BEFORE invoking this worker.
+ * The worker is only called for routes that have no matching static file:
+ *
  *   GET  /entries  → fetch all blueprints from D1
  *   POST /submit   → save to D1 + send email via Resend
- *   *              → serve static assets from public/
  *
- * Bindings (already configured in Cloudflare dashboard):
- *   env.db             — D1 database (binding name: db)
- *   env.ASSETS         — Static asset serving (auto-provided)
+ * Bindings (configured in wrangler.jsonc / Cloudflare dashboard):
+ *   env.db             — D1 database
  *
- * Environment variables (set in Cloudflare dashboard):
+ * Environment variables (Cloudflare dashboard → Worker → Settings):
  *   RESEND_API_KEY     — Resend API key
  *   EMAIL_FROM         — Verified sender address
  *   EMAIL_TO           — Recipient address
@@ -28,11 +29,9 @@ export default {
       return handleSubmit(request, env);
     }
 
-    // Everything else → static assets (index.html, style.css, app.js)
-    if (!env.ASSETS) {
-      return new Response('ASSETS binding not configured. Add "binding": "ASSETS" under assets in wrangler.jsonc.', { status: 503 });
-    }
-    return env.ASSETS.fetch(request);
+    // Static files are served by Cloudflare before this worker runs.
+    // Any unrecognised route returns 404.
+    return new Response('Not found', { status: 404 });
   },
 };
 
