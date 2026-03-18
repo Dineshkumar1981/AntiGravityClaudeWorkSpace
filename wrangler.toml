@@ -1,0 +1,9 @@
+name               = "blueprint-app"
+compatibility_date = "2024-09-23"
+
+# D1 binding for local dev only (`npm run dev`)
+# Production bindings are set in the Cloudflare Pages dashboard
+[[d1_databases]]
+binding       = "DB"
+database_name = "blueprints-db"
+database_id   = "REPLACE_WITH_YOUR_D1_DATABASE_ID"

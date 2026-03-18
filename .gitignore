@@ -5,4 +5,3 @@ node_modules/
 blueprints.db
 package-lock.json
 .claude/
-wrangler.toml
