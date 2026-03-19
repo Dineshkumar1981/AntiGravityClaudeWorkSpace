@@ -41,7 +41,8 @@ async function handleEntries(env) {
     }
 
     const { results } = await env.db.prepare(
-      `SELECT id, company_name, application_purpose, description, submitted_at
+      `SELECT id, company_name, application_purpose, description, submitted_at,
+              attachment_name, attachment_mime, attachment_data
        FROM blueprints ORDER BY id DESC`
     ).all();
 
@@ -65,7 +66,8 @@ async function handleSubmit(request, env) {
       return jsonRes({ success: false, error: 'Invalid JSON body.' }, 400);
     }
 
-    const { applicationPurpose, description, companyName } = body;
+    const { applicationPurpose, description, companyName,
+            attachmentName, attachmentData, attachmentMime } = body;
 
     if (!applicationPurpose || !description || !companyName) {
       return jsonRes({ success: false, error: 'All fields are required.' }, 400);
@@ -77,13 +79,22 @@ async function handleSubmit(request, env) {
       timeZone: 'UTC',
     });
 
+    const hasAttachment = !!(attachmentName && attachmentData);
+
     // 1. Save to D1
     let newEntry;
     try {
       const result = await env.db.prepare(
-        `INSERT INTO blueprints (company_name, application_purpose, description, submitted_at)
-         VALUES (?, ?, ?, ?)`
-      ).bind(companyName, applicationPurpose, description, submittedAt).run();
+        `INSERT INTO blueprints
+           (company_name, application_purpose, description, submitted_at,
+            attachment_name, attachment_mime, attachment_data)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        companyName, applicationPurpose, description, submittedAt,
+        hasAttachment ? attachmentName : null,
+        hasAttachment ? (attachmentMime || 'application/octet-stream') : null,
+        hasAttachment ? attachmentData : null,
+      ).run();
 
       newEntry = {
         id:                  result.meta.last_row_id,
@@ -91,6 +102,9 @@ async function handleSubmit(request, env) {
         application_purpose: applicationPurpose,
         description,
         submitted_at:        submittedAt,
+        attachment_name:     hasAttachment ? attachmentName : null,
+        attachment_mime:     hasAttachment ? attachmentMime : null,
+        attachment_data:     hasAttachment ? attachmentData : null,
       };
     } catch (err) {
       return jsonRes({ success: false, error: 'Database error: ' + err.message }, 500);
@@ -166,10 +180,20 @@ async function sendViaMicrosoftGraph(entry, env) {
               description:        entry.description,
               submittedAt:        entry.submitted_at,
               id:                 entry.id,
+              attachmentName:     entry.attachment_name || null,
             }),
           },
           toRecipients: [{ emailAddress: { address: EMAIL_TO } }],
           from:          { emailAddress: { address: EMAIL_FROM } },
+          // Attach file if present
+          ...(entry.attachment_name && entry.attachment_data && {
+            attachments: [{
+              '@odata.type':  '#microsoft.graph.fileAttachment',
+              name:           entry.attachment_name,
+              contentType:    entry.attachment_mime || 'application/octet-stream',
+              contentBytes:   entry.attachment_data,
+            }],
+          }),
         },
         saveToSentItems: true,
       }),
@@ -196,7 +220,7 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-function buildEmailHtml({ companyName, applicationPurpose, description, submittedAt, id }) {
+function buildEmailHtml({ companyName, applicationPurpose, description, submittedAt, id, attachmentName }) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
       <div style="background:#0d1b2a;color:#1e90ff;padding:20px 24px;border-radius:8px 8px 0 0;">
@@ -222,8 +246,14 @@ function buildEmailHtml({ companyName, applicationPurpose, description, submitte
               <td style="padding:12px 16px;border-bottom:1px solid #d0d7de;white-space:pre-wrap;">${escapeHtml(description)}</td>
             </tr>
             <tr style="background:#f6f8fa;">
-              <th style="padding:12px 16px;text-align:left;color:#57606a;">Submitted At</th>
-              <td style="padding:12px 16px;">${submittedAt}</td>
+              <th style="padding:12px 16px;text-align:left;color:#57606a;border-bottom:1px solid #d0d7de;">Submitted At</th>
+              <td style="padding:12px 16px;border-bottom:1px solid #d0d7de;">${submittedAt}</td>
+            </tr>
+            <tr>
+              <th style="padding:12px 16px;text-align:left;color:#57606a;">Attachment</th>
+              <td style="padding:12px 16px;">${attachmentName
+                ? `&#128206; ${escapeHtml(attachmentName)} <em style="color:#8c949e;font-size:12px;">(see attached)</em>`
+                : '<em style="color:#8c949e;">None</em>'}</td>
             </tr>
           </tbody>
         </table>

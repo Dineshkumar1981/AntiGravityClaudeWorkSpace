@@ -57,6 +57,28 @@
           ></textarea>
         </div>
 
+        <div class="field-group">
+          <label for="attachment">Attachment <span class="optional">(optional · max 3 MB)</span></label>
+          <div class="file-drop-zone" id="file-drop-zone">
+            <input
+              type="file"
+              id="attachment"
+              name="attachment"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg"
+            />
+            <div class="file-drop-label">
+              <span class="file-icon">&#128206;</span>
+              <span id="file-label-text">Drag &amp; drop a file here, or <u>click to browse</u></span>
+            </div>
+          </div>
+          <div id="file-preview" class="file-preview" style="display:none;">
+            <span class="file-preview-icon">&#128206;</span>
+            <span id="file-preview-name"></span>
+            <span id="file-preview-size" class="file-preview-size"></span>
+            <button type="button" id="file-clear-btn" title="Remove file">&times;</button>
+          </div>
+        </div>
+
         <div id="status-message" role="alert" aria-live="polite"></div>
 
         <button type="submit" id="submit-btn">
@@ -83,6 +105,7 @@
               <th>Company Name</th>
               <th>Application Purpose</th>
               <th>Description</th>
+              <th>Attachment</th>
               <th>Submitted At</th>
             </tr>
           </thead>
