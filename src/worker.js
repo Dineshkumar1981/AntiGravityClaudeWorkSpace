@@ -33,12 +33,42 @@ export default {
   },
 };
 
+// ── Schema migration (runs on every cold start, safe to repeat) ───────────────
+async function ensureSchema(db) {
+  // Create base table if missing
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS blueprints (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_name        TEXT    NOT NULL,
+      application_purpose TEXT    NOT NULL,
+      description         TEXT    NOT NULL,
+      submitted_at        TEXT    NOT NULL
+    )
+  `).run();
+
+  // Add attachment columns — each ALTER is wrapped individually so one
+  // "duplicate column" error never blocks the others.
+  for (const col of [
+    'ALTER TABLE blueprints ADD COLUMN attachment_name TEXT',
+    'ALTER TABLE blueprints ADD COLUMN attachment_mime TEXT',
+    'ALTER TABLE blueprints ADD COLUMN attachment_data TEXT',
+  ]) {
+    try {
+      await db.prepare(col).run();
+    } catch (e) {
+      if (!e.message.toLowerCase().includes('duplicate column')) throw e;
+    }
+  }
+}
+
 // ── GET /entries ──────────────────────────────────────────────────────────────
 async function handleEntries(env) {
   try {
     if (!env.db) {
       return jsonRes({ success: false, error: 'D1 binding "db" not found. Check Cloudflare dashboard → Workers → Settings → D1 database bindings.' }, 503);
     }
+
+    await ensureSchema(env.db);
 
     const { results } = await env.db.prepare(
       `SELECT id, company_name, application_purpose, description, submitted_at,
@@ -58,6 +88,8 @@ async function handleSubmit(request, env) {
     if (!env.db) {
       return jsonRes({ success: false, error: 'D1 binding "db" not found. Check Cloudflare dashboard → Workers → Settings → D1 database bindings.' }, 503);
     }
+
+    await ensureSchema(env.db);
 
     let body;
     try {
