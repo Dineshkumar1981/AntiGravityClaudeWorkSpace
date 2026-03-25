@@ -6,3 +6,6 @@ blueprints.db
 package-lock.json
 .claude/
 wrangler.toml
+o2c-worker-bundle.js
+build_o2c_worker.py
+deploy_o2c.py
