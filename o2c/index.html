@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>O2C Platform — UK Telecom</title>
+  <link rel="stylesheet" href="style.css"/>
+  <!-- bpmn-js open-source BPMN 2.0 viewer (Camunda / bpmn.io) -->
+  <link rel="stylesheet" href="https://unpkg.com/bpmn-js@17/dist/assets/diagram-js.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/bpmn-js@17/dist/assets/bpmn-js.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/bpmn-js@17/dist/assets/bpmn-font/css/bpmn.css"/>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- ── Sidebar ── -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">⚡</span>
+      <span class="logo-text">O2C Platform</span>
+    </div>
+
+    <div class="nav-section-label">Order Flow</div>
+    <ul class="nav-menu">
+      <li class="nav-item" data-module="dashboard">
+        <span class="nav-icon">📊</span><span class="nav-label">Dashboard</span>
+      </li>
+      <li class="nav-item" data-module="orders">
+        <span class="nav-icon">🛒</span><span class="nav-label">Order Capture</span>
+        <span class="nav-badge" id="nb-orders"></span>
+      </li>
+      <li class="nav-item" data-module="credit">
+        <span class="nav-icon">🔍</span><span class="nav-label">Credit &amp; Risk</span>
+        <span class="nav-badge warning" id="nb-credit"></span>
+      </li>
+      <li class="nav-item" data-module="orchestration">
+        <span class="nav-icon">⚙️</span><span class="nav-label">Orchestration</span>
+        <span class="nav-badge" id="nb-orch"></span>
+      </li>
+      <li class="nav-item" data-module="provisioning">
+        <span class="nav-icon">📡</span><span class="nav-label">Provisioning</span>
+        <span class="nav-badge danger" id="nb-prov"></span>
+      </li>
+    </ul>
+
+    <div class="nav-section-label">Billing &amp; Revenue</div>
+    <ul class="nav-menu">
+      <li class="nav-item" data-module="usage">
+        <span class="nav-icon">📶</span><span class="nav-label">Usage &amp; Rating</span>
+      </li>
+      <li class="nav-item" data-module="billing">
+        <span class="nav-icon">📄</span><span class="nav-label">Billing</span>
+        <span class="nav-badge warning" id="nb-billing"></span>
+      </li>
+      <li class="nav-item" data-module="payments">
+        <span class="nav-icon">💳</span><span class="nav-label">Payments</span>
+      </li>
+    </ul>
+
+    <div class="nav-section-label">Collections &amp; Compliance</div>
+    <ul class="nav-menu">
+      <li class="nav-item" data-module="collections">
+        <span class="nav-icon">📬</span><span class="nav-label">Collections</span>
+        <span class="nav-badge danger" id="nb-coll"></span>
+      </li>
+      <li class="nav-item" data-module="disputes">
+        <span class="nav-icon">⚖️</span><span class="nav-label">Disputes</span>
+        <span class="nav-badge danger" id="nb-disp"></span>
+      </li>
+      <li class="nav-item" data-module="revenue">
+        <span class="nav-icon">📈</span><span class="nav-label">Revenue (IFRS 15)</span>
+      </li>
+    </ul>
+
+    <div class="nav-section-label">Workflow Engine</div>
+    <ul class="nav-menu">
+      <li class="nav-item" data-module="processes">
+        <span class="nav-icon">🔀</span><span class="nav-label">BPM Processes</span>
+        <span class="nav-badge" id="nb-wf" style="background:#8b5cf6"></span>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <span class="comp-badge">Ofcom</span>
+      <span class="comp-badge">GDPR</span>
+      <span class="comp-badge">IFRS 15</span>
+    </div>
+  </nav>
+
+  <!-- ── Main ── -->
+  <div class="content-wrap">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="sidebar-toggle" id="sidebar-toggle">☰</button>
+        <span class="page-title" id="page-title">Dashboard</span>
+      </div>
+      <div class="topbar-right">
+        <div class="kpi-pill">STP <strong id="tp-stp">—</strong></div>
+        <div class="kpi-pill">DSO <strong id="tp-dso">—</strong></div>
+        <div class="kpi-pill">Orders <strong id="tp-orders">—</strong></div>
+        <div class="user-chip">
+          <span class="user-av">FA</span>
+          <span class="user-name">Finance Analyst</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content" id="main-content">
+      <div class="loading-spinner">Loading…</div>
+    </main>
+  </div>
+</div>
+
+<!-- ── Global Modal ── -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal">
+    <div class="modal-hdr">
+      <h3 id="modal-title">Dialog</h3>
+      <button class="modal-close" id="modal-close">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-ftr" id="modal-ftr"></div>
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div id="toast-host"></div>
+
+<!-- bpmn-js bundled viewer — exposes global BpmnJS -->
+<script src="https://unpkg.com/bpmn-js@17/dist/bpmn-viewer.development.js"></script>
+<script src="app.js"></script>
+<script src="workflows.js"></script>
+</body>
+</html>
