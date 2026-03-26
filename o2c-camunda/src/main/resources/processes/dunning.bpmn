@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+  id="Defs_Dunning" targetNamespace="http://o2c.uk.telecom/dunning">
+
+  <process id="proc_dunning" name="Collections &amp; Dunning" isExecutable="true" camunda:historyTimeToLive="90">
+
+    <startEvent id="dun_start" name="Invoice Overdue"><outgoing>dsf1</outgoing></startEvent>
+    <sequenceFlow id="dsf1" sourceRef="dun_start" targetRef="dun_t1"/>
+
+    <userTask id="dun_t1" name="Stage 1 Reminder (14d)"
+              camunda:candidateGroups="collections-team">
+      <outgoing>dsf2</outgoing>
+    </userTask>
+    <sequenceFlow id="dsf2" sourceRef="dun_t1" targetRef="dun_gw1"/>
+
+    <exclusiveGateway id="dun_gw1" name="Paid?">
+      <outgoing>dsf3a</outgoing>
+      <outgoing>dsf3b</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="dsf3a" name="Yes" sourceRef="dun_gw1" targetRef="dun_paid1">
+      <conditionExpression>${paymentReceived == true}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="dsf3b" name="No" sourceRef="dun_gw1" targetRef="dun_t2">
+      <conditionExpression>${paymentReceived == false}</conditionExpression>
+    </sequenceFlow>
+
+    <endEvent id="dun_paid1" name="Payment Received"/>
+
+    <userTask id="dun_t2" name="Stage 2 Warning (7d)"
+              camunda:candidateGroups="collections-team">
+      <outgoing>dsf4</outgoing>
+    </userTask>
+    <sequenceFlow id="dsf4" sourceRef="dun_t2" targetRef="dun_gw2"/>
+
+    <exclusiveGateway id="dun_gw2" name="Paid?">
+      <outgoing>dsf5a</outgoing>
+      <outgoing>dsf5b</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="dsf5a" name="Yes" sourceRef="dun_gw2" targetRef="dun_paid2">
+      <conditionExpression>${paymentReceived == true}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="dsf5b" name="No" sourceRef="dun_gw2" targetRef="dun_t3">
+      <conditionExpression>${paymentReceived == false}</conditionExpression>
+    </sequenceFlow>
+
+    <endEvent id="dun_paid2" name="Payment Received"/>
+
+    <userTask id="dun_t3" name="Stage 3 Final Notice (7d)"
+              camunda:candidateGroups="collections-team">
+      <outgoing>dsf6</outgoing>
+    </userTask>
+    <sequenceFlow id="dsf6" sourceRef="dun_t3" targetRef="dun_gw3"/>
+
+    <exclusiveGateway id="dun_gw3" name="Paid?">
+      <outgoing>dsf7a</outgoing>
+      <outgoing>dsf7b</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="dsf7a" name="Yes" sourceRef="dun_gw3" targetRef="dun_paid3">
+      <conditionExpression>${paymentReceived == true}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="dsf7b" name="No" sourceRef="dun_gw3" targetRef="dun_t4">
+      <conditionExpression>${paymentReceived == false}</conditionExpression>
+    </sequenceFlow>
+
+    <endEvent id="dun_paid3" name="Payment Received"/>
+
+    <serviceTask id="dun_t4" name="Stage 4 Suspension"
+                 camunda:delegateExpression="${suspendServiceDelegate}">
+      <outgoing>dsf8</outgoing>
+    </serviceTask>
+    <sequenceFlow id="dsf8" sourceRef="dun_t4" targetRef="dun_end"/>
+
+    <endEvent id="dun_end" name="Service Suspended"/>
+
+  </process>
+
+  <bpmndi:BPMNDiagram id="diag_dunning">
+    <bpmndi:BPMNPlane bpmnElement="proc_dunning">
+      <bpmndi:BPMNShape id="sh_dun_start" bpmnElement="dun_start"><dc:Bounds x="62" y="162" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dun_t1" bpmnElement="dun_t1"><dc:Bounds x="148" y="140" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dun_gw1" bpmnElement="dun_gw1" isMarkerVisible="true"><dc:Bounds x="308" y="155" width="50" height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dun_paid1" bpmnElement="dun_paid1"><dc:Bounds x="315" y="302" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dun_t2" bpmnElement="dun_t2"><dc:Bounds x="418" y="140" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dun_gw2" bpmnElement="dun_gw2" isMarkerVisible="true"><dc:Bounds x="578" y="155" width="50" height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dun_paid2" bpmnElement="dun_paid2"><dc:Bounds x="585" y="302" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dun_t3" bpmnElement="dun_t3"><dc:Bounds x="688" y="140" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dun_gw3" bpmnElement="dun_gw3" isMarkerVisible="true"><dc:Bounds x="848" y="155" width="50" height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dun_paid3" bpmnElement="dun_paid3"><dc:Bounds x="855" y="302" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dun_t4" bpmnElement="dun_t4"><dc:Bounds x="958" y="140" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dun_end" bpmnElement="dun_end"><dc:Bounds x="1118" y="162" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="de_dsf1" bpmnElement="dsf1"><di:waypoint x="98" y="180"/><di:waypoint x="148" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dsf2" bpmnElement="dsf2"><di:waypoint x="248" y="180"/><di:waypoint x="308" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dsf3a" bpmnElement="dsf3a"><di:waypoint x="333" y="205"/><di:waypoint x="333" y="302"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dsf3b" bpmnElement="dsf3b"><di:waypoint x="358" y="180"/><di:waypoint x="418" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dsf4" bpmnElement="dsf4"><di:waypoint x="518" y="180"/><di:waypoint x="578" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dsf5a" bpmnElement="dsf5a"><di:waypoint x="603" y="205"/><di:waypoint x="603" y="302"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dsf5b" bpmnElement="dsf5b"><di:waypoint x="628" y="180"/><di:waypoint x="688" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dsf6" bpmnElement="dsf6"><di:waypoint x="788" y="180"/><di:waypoint x="848" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dsf7a" bpmnElement="dsf7a"><di:waypoint x="873" y="205"/><di:waypoint x="873" y="302"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dsf7b" bpmnElement="dsf7b"><di:waypoint x="898" y="180"/><di:waypoint x="958" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dsf8" bpmnElement="dsf8"><di:waypoint x="1058" y="180"/><di:waypoint x="1118" y="180"/></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+  id="Defs_Dispute" targetNamespace="http://o2c.uk.telecom/dispute">
+
+  <process id="proc_dispute" name="Dispute Resolution" isExecutable="true" camunda:historyTimeToLive="90">
+
+    <startEvent id="dis_start" name="Dispute Raised"><outgoing>dspsf1</outgoing></startEvent>
+    <sequenceFlow id="dspsf1" sourceRef="dis_start" targetRef="dis_triage"/>
+
+    <userTask id="dis_triage" name="Initial Triage"
+              camunda:candidateGroups="disputes-team">
+      <outgoing>dspsf2</outgoing>
+    </userTask>
+    <sequenceFlow id="dspsf2" sourceRef="dis_triage" targetRef="dis_invest"/>
+
+    <userTask id="dis_invest" name="Investigation &amp; Review"
+              camunda:candidateGroups="disputes-team">
+      <outgoing>dspsf3</outgoing>
+    </userTask>
+    <sequenceFlow id="dspsf3" sourceRef="dis_invest" targetRef="dis_gw"/>
+
+    <exclusiveGateway id="dis_gw" name="Decision?">
+      <outgoing>dspsf4a</outgoing>
+      <outgoing>dspsf4b</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="dspsf4a" name="Upheld" sourceRef="dis_gw" targetRef="dis_credit">
+      <conditionExpression>${disputionDecision == 'UPHELD'}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="dspsf4b" name="Rejected" sourceRef="dis_gw" targetRef="dis_reject">
+      <conditionExpression>${disputionDecision == 'REJECTED'}</conditionExpression>
+    </sequenceFlow>
+
+    <serviceTask id="dis_credit" name="Issue Credit Note"
+                 camunda:delegateExpression="${issueCreditNoteDelegate}">
+      <outgoing>dspsf5a</outgoing>
+    </serviceTask>
+    <sequenceFlow id="dspsf5a" sourceRef="dis_credit" targetRef="dis_rca"/>
+
+    <userTask id="dis_reject" name="Rejection Notification"
+              camunda:candidateGroups="disputes-team">
+      <outgoing>dspsf5b</outgoing>
+    </userTask>
+    <sequenceFlow id="dspsf5b" sourceRef="dis_reject" targetRef="dis_rca"/>
+
+    <serviceTask id="dis_rca" name="Root Cause Analysis"
+                 camunda:delegateExpression="${rootCauseAnalysisDelegate}">
+      <outgoing>dspsf6</outgoing>
+    </serviceTask>
+    <sequenceFlow id="dspsf6" sourceRef="dis_rca" targetRef="dis_end"/>
+
+    <endEvent id="dis_end" name="Dispute Resolved"/>
+
+  </process>
+
+  <bpmndi:BPMNDiagram id="diag_dispute">
+    <bpmndi:BPMNPlane bpmnElement="proc_dispute">
+      <bpmndi:BPMNShape id="sh_dis_start" bpmnElement="dis_start"><dc:Bounds x="62" y="162" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dis_triage" bpmnElement="dis_triage"><dc:Bounds x="148" y="140" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dis_invest" bpmnElement="dis_invest"><dc:Bounds x="308" y="140" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dis_gw" bpmnElement="dis_gw" isMarkerVisible="true"><dc:Bounds x="468" y="155" width="50" height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dis_credit" bpmnElement="dis_credit"><dc:Bounds x="578" y="140" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dis_reject" bpmnElement="dis_reject"><dc:Bounds x="578" y="290" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dis_rca" bpmnElement="dis_rca"><dc:Bounds x="738" y="215" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_dis_end" bpmnElement="dis_end"><dc:Bounds x="898" y="237" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="de_dspsf1" bpmnElement="dspsf1"><di:waypoint x="98" y="180"/><di:waypoint x="148" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dspsf2" bpmnElement="dspsf2"><di:waypoint x="248" y="180"/><di:waypoint x="308" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dspsf3" bpmnElement="dspsf3"><di:waypoint x="408" y="180"/><di:waypoint x="468" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dspsf4a" bpmnElement="dspsf4a"><di:waypoint x="518" y="180"/><di:waypoint x="578" y="180"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dspsf4b" bpmnElement="dspsf4b"><di:waypoint x="493" y="205"/><di:waypoint x="493" y="330"/><di:waypoint x="578" y="330"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dspsf5a" bpmnElement="dspsf5a"><di:waypoint x="678" y="180"/><di:waypoint x="788" y="180"/><di:waypoint x="788" y="215"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dspsf5b" bpmnElement="dspsf5b"><di:waypoint x="678" y="330"/><di:waypoint x="788" y="330"/><di:waypoint x="788" y="295"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="de_dspsf6" bpmnElement="dspsf6"><di:waypoint x="838" y="255"/><di:waypoint x="898" y="255"/></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>O2C Platform — Camunda 7</title>
+  <link rel="stylesheet" href="/style.css"/>
+</head>
+<body>
+<aside class="sidebar" id="sidebar">
+  <div class="sb-logo"><span class="logo-icon">⚡</span></div>
+  <nav>
+    <a class="sb-item" data-module="dashboard"      title="Dashboard">      <span class="sb-icon">📊</span></a>
+    <a class="sb-item" data-module="orders"         title="Order Capture">  <span class="sb-icon">🛒</span></a>
+    <a class="sb-item" data-module="credit"         title="Credit & Risk">  <span class="sb-icon">🔍</span></a>
+    <a class="sb-item" data-module="orchestration"  title="Orchestration">  <span class="sb-icon">⚙️</span></a>
+    <a class="sb-item" data-module="provisioning"   title="Provisioning">   <span class="sb-icon">📡</span></a>
+    <a class="sb-item" data-module="usage"          title="Usage & Rating"> <span class="sb-icon">📶</span></a>
+    <a class="sb-item" data-module="billing"        title="Billing">        <span class="sb-icon">📄</span></a>
+    <a class="sb-item" data-module="payments"       title="Payments">       <span class="sb-icon">💳</span></a>
+    <a class="sb-item" data-module="collections"    title="Collections">    <span class="sb-icon">📬</span></a>
+    <a class="sb-item" data-module="disputes"       title="Disputes">       <span class="sb-icon">⚖️</span></a>
+    <a class="sb-item" data-module="revenue"        title="Revenue (IFRS 15)"><span class="sb-icon">📈</span></a>
+    <a class="sb-item" data-module="processes"      title="BPM Processes">  <span class="sb-icon">🔄</span></a>
+  </nav>
+</aside>
+
+<div class="app-shell">
+  <header class="topbar">
+    <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+    <h1 class="page-title" id="pageTitle">Dashboard</h1>
+    <div class="topbar-kpis">
+      <span class="kpi-pill" id="pill-stp">STP —</span>
+      <span class="kpi-pill" id="pill-dso">DSO —</span>
+      <span class="kpi-pill" id="pill-orders">Orders —</span>
+    </div>
+    <div class="user-avatar">FA <span style="font-size:10px;opacity:.7">Finance Analyst</span></div>
+  </header>
+
+  <main class="main-content" id="mainContent">
+    <div class="loading-spinner">Loading…</div>
+  </main>
+</div>
+
+<!-- Global modal -->
+<div class="modal-overlay" id="modalOverlay" style="display:none">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-header">
+      <span id="modalTitle"></span>
+      <button class="modal-close" onclick="Modal.close()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- Toast host -->
+<div id="toastHost" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px"></div>
+
+<!-- bpmn-js viewer (CDN) -->
+<script src="https://unpkg.com/bpmn-js@17.11.1/dist/bpmn-viewer.development.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

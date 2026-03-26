@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+  id="Defs_O2C" targetNamespace="http://o2c.uk.telecom">
+
+  <process id="proc_o2c" name="Order-to-Cash" isExecutable="true" camunda:historyTimeToLive="90">
+
+    <startEvent id="ev_start" name="Order Received">
+      <outgoing>sf1</outgoing>
+    </startEvent>
+    <sequenceFlow id="sf1" sourceRef="ev_start" targetRef="t_capture"/>
+
+    <userTask id="t_capture" name="Order Capture &amp; Validation"
+              camunda:candidateGroups="order-capture">
+      <outgoing>sf2</outgoing>
+    </userTask>
+    <sequenceFlow id="sf2" sourceRef="t_capture" targetRef="t_fraud"/>
+
+    <serviceTask id="t_fraud" name="Fraud Screening (AI)"
+                 camunda:delegateExpression="${fraudScreeningDelegate}">
+      <outgoing>sf3</outgoing>
+    </serviceTask>
+    <sequenceFlow id="sf3" sourceRef="t_fraud" targetRef="gw_fraud"/>
+
+    <exclusiveGateway id="gw_fraud" name="Fraud?">
+      <outgoing>sf4a</outgoing>
+      <outgoing>sf4b</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="sf4a" name="Clean" sourceRef="gw_fraud" targetRef="t_credit">
+      <conditionExpression>${fraudFlagged == false}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="sf4b" name="Flagged" sourceRef="gw_fraud" targetRef="ev_fraud">
+      <conditionExpression>${fraudFlagged == true}</conditionExpression>
+    </sequenceFlow>
+
+    <userTask id="t_credit" name="Credit Assessment"
+              camunda:candidateGroups="credit-team">
+      <outgoing>sf5</outgoing>
+    </userTask>
+    <sequenceFlow id="sf5" sourceRef="t_credit" targetRef="gw_credit"/>
+
+    <exclusiveGateway id="gw_credit" name="Decision?">
+      <outgoing>sf6a</outgoing>
+      <outgoing>sf6b</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="sf6a" name="Approved" sourceRef="gw_credit" targetRef="t_provision">
+      <conditionExpression>${creditApproved == true}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="sf6b" name="Declined" sourceRef="gw_credit" targetRef="ev_declined">
+      <conditionExpression>${creditApproved == false}</conditionExpression>
+    </sequenceFlow>
+
+    <serviceTask id="t_provision" name="Service Provisioning"
+                 camunda:delegateExpression="${provisionServiceDelegate}">
+      <outgoing>sf7</outgoing>
+    </serviceTask>
+    <sequenceFlow id="sf7" sourceRef="t_provision" targetRef="t_billing"/>
+
+    <serviceTask id="t_billing" name="Invoice Generation"
+                 camunda:delegateExpression="${generateInvoiceDelegate}">
+      <outgoing>sf8</outgoing>
+    </serviceTask>
+    <sequenceFlow id="sf8" sourceRef="t_billing" targetRef="t_payment"/>
+
+    <userTask id="t_payment" name="Payment Collection"
+              camunda:candidateGroups="payments-team">
+      <outgoing>sf9</outgoing>
+    </userTask>
+    <sequenceFlow id="sf9" sourceRef="t_payment" targetRef="gw_payment"/>
+
+    <exclusiveGateway id="gw_payment" name="Paid?">
+      <outgoing>sf10a</outgoing>
+      <outgoing>sf10b</outgoing>
+    </exclusiveGateway>
+    <sequenceFlow id="sf10a" name="Paid" sourceRef="gw_payment" targetRef="t_revenue">
+      <conditionExpression>${paymentReceived == true}</conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="sf10b" name="Overdue" sourceRef="gw_payment" targetRef="t_dunning">
+      <conditionExpression>${paymentReceived == false}</conditionExpression>
+    </sequenceFlow>
+
+    <serviceTask id="t_dunning" name="Collections &amp; Dunning"
+                 camunda:delegateExpression="${suspendServiceDelegate}">
+      <outgoing>sf11</outgoing>
+    </serviceTask>
+    <sequenceFlow id="sf11" sourceRef="t_dunning" targetRef="t_payment"/>
+
+    <serviceTask id="t_revenue" name="Revenue Recognition (IFRS 15)"
+                 camunda:delegateExpression="${recogniseRevenueDelegate}">
+      <outgoing>sf12</outgoing>
+    </serviceTask>
+    <sequenceFlow id="sf12" sourceRef="t_revenue" targetRef="ev_done"/>
+
+    <endEvent id="ev_done" name="Cash Received"/>
+    <endEvent id="ev_fraud" name="Fraud Rejected"/>
+    <endEvent id="ev_declined" name="Credit Declined"/>
+
+  </process>
+
+  <bpmndi:BPMNDiagram id="diag_o2c">
+    <bpmndi:BPMNPlane bpmnElement="proc_o2c">
+      <bpmndi:BPMNShape id="sh_ev_start" bpmnElement="ev_start"><dc:Bounds x="62" y="182" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_t_capture" bpmnElement="t_capture"><dc:Bounds x="148" y="160" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_t_fraud" bpmnElement="t_fraud"><dc:Bounds x="308" y="160" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_gw_fraud" bpmnElement="gw_fraud" isMarkerVisible="true"><dc:Bounds x="468" y="175" width="50" height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_t_credit" bpmnElement="t_credit"><dc:Bounds x="578" y="160" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_gw_credit" bpmnElement="gw_credit" isMarkerVisible="true"><dc:Bounds x="738" y="175" width="50" height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_t_provision" bpmnElement="t_provision"><dc:Bounds x="848" y="160" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_t_billing" bpmnElement="t_billing"><dc:Bounds x="1008" y="160" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_t_payment" bpmnElement="t_payment"><dc:Bounds x="1168" y="160" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_gw_payment" bpmnElement="gw_payment" isMarkerVisible="true"><dc:Bounds x="1328" y="175" width="50" height="50"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_t_revenue" bpmnElement="t_revenue"><dc:Bounds x="1438" y="160" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_ev_done" bpmnElement="ev_done"><dc:Bounds x="1598" y="182" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_ev_fraud" bpmnElement="ev_fraud"><dc:Bounds x="475" y="342" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_ev_declined" bpmnElement="ev_declined"><dc:Bounds x="745" y="342" width="36" height="36"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sh_t_dunning" bpmnElement="t_dunning"><dc:Bounds x="1303" y="320" width="100" height="80"/></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="e_sf1" bpmnElement="sf1"><di:waypoint x="98" y="200"/><di:waypoint x="148" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf2" bpmnElement="sf2"><di:waypoint x="248" y="200"/><di:waypoint x="308" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf3" bpmnElement="sf3"><di:waypoint x="408" y="200"/><di:waypoint x="468" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf4a" bpmnElement="sf4a"><di:waypoint x="518" y="200"/><di:waypoint x="578" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf4b" bpmnElement="sf4b"><di:waypoint x="493" y="225"/><di:waypoint x="493" y="342"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf5" bpmnElement="sf5"><di:waypoint x="678" y="200"/><di:waypoint x="738" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf6a" bpmnElement="sf6a"><di:waypoint x="788" y="200"/><di:waypoint x="848" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf6b" bpmnElement="sf6b"><di:waypoint x="763" y="225"/><di:waypoint x="763" y="342"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf7" bpmnElement="sf7"><di:waypoint x="948" y="200"/><di:waypoint x="1008" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf8" bpmnElement="sf8"><di:waypoint x="1108" y="200"/><di:waypoint x="1168" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf9" bpmnElement="sf9"><di:waypoint x="1268" y="200"/><di:waypoint x="1328" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf10a" bpmnElement="sf10a"><di:waypoint x="1378" y="200"/><di:waypoint x="1438" y="200"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf10b" bpmnElement="sf10b"><di:waypoint x="1353" y="225"/><di:waypoint x="1353" y="320"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf11" bpmnElement="sf11"><di:waypoint x="1303" y="360"/><di:waypoint x="1218" y="360"/><di:waypoint x="1218" y="240"/></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="e_sf12" bpmnElement="sf12"><di:waypoint x="1538" y="200"/><di:waypoint x="1598" y="200"/></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</definitions>
